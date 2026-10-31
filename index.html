@@ -2,8 +2,8 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YARTZ — Прямой эфир | Ссылки</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>YARTZ — Стрим | Хаб</title>
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -42,6 +42,9 @@
             color: #FFFFFF;
             font-family: 'Inter', sans-serif;
             min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
         }
 
         .glow-brand {
@@ -63,11 +66,11 @@
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
 
-        /* Адаптивный контейнер плеера */
+        /* Видеоплеер с сохранением пропорций */
         .video-container {
             position: relative;
             width: 100%;
-            padding-bottom: 56.25%;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
             height: 0;
             background-color: #000;
         }
@@ -80,19 +83,26 @@
             border: 0;
         }
 
-        .tab-content {
-            display: none;
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
+        /* Кастомный скроллбар */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
         }
-        .tab-content.active {
-            display: block;
-            opacity: 1;
+        ::-webkit-scrollbar-track {
+            background: #252525;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #60E4EE;
         }
     </style>
 </head>
 <body class="flex flex-col min-h-screen bg-mainbg text-white">
 
+    <!-- Конфигурация стримера -->
     <script>
         const STREAMER_CONFIG = {
             twitchUsername: "yartz_russia", 
@@ -108,260 +118,392 @@
 
             defaultStreamTitle: "Прямая трансляция YARTZ"
         };
+
+        // Состояние приложения
+        let state = {
+            isOnline: false,
+            streamTitle: STREAMER_CONFIG.defaultStreamTitle,
+            mobileModalOpen: false
+        };
     </script>
 
-    <!-- Шапка сайта (зафиксирована сверху) -->
-    <header class="border-b border-gray-700/60 bg-mainbg/90 backdrop-blur-md sticky top-0 z-50">
-        <div class="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
-            
-            <!-- Логотип PNG YARTZ -->
-            <a href="#" onclick="switchTab('stream'); return false;" class="inline-flex items-center shrink-0 hover:opacity-90 transition-opacity">
-                <img src="https://i.postimg.cc/X7gtYcjr/logomini.png" alt="YARTZ Logo" class="h-8 sm:h-10 w-auto object-contain" onerror="this.onerror=null; this.src='./логомини.png';">
-            </a>
+    <!-- ========================================== -->
+    <!-- 💻 1. ИНТЕРФЕЙС ДЛЯ ПК (md и выше)         -->
+    <!-- ========================================== -->
+    <div id="desktop-layout" class="hidden md:flex flex-col min-h-screen">
+        
+        <!-- Шапка для ПК -->
+        <header class="border-b border-gray-700/60 bg-mainbg/90 backdrop-blur-md sticky top-0 z-40">
+            <div class="w-full px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+                
+                <!-- Логотип -->
+                <a href="#" class="inline-flex items-center shrink-0 hover:opacity-90 transition-opacity">
+                    <img src="https://i.postimg.cc/X7gtYcjr/logomini.png" alt="YARTZ Logo" class="h-10 w-auto object-contain" onerror="this.onerror=null; this.src='https://placehold.co/120x40/252525/60E4EE?text=YARTZ';">
+                </a>
 
-            <!-- Блок быстрого доступа (YouTube, Telegram, Донат) - ТОЛЬКО ДЛЯ ПК -->
-            <div class="hidden md:flex items-center gap-2">
-                <a id="header-yt-btn" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-3.5 h-[38px] rounded-xl text-xs sm:text-sm font-semibold bg-cardbg border border-gray-700 hover:border-brand text-gray-300 hover:text-white transition-all shadow-md">
-                    <i class="fa-brands fa-youtube text-youtube text-base"></i>
-                    <span>YouTube</span>
-                </a>
-                <a id="header-tg-btn" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-3.5 h-[38px] rounded-xl text-xs sm:text-sm font-semibold bg-cardbg border border-gray-700 hover:border-brand text-gray-300 hover:text-white transition-all shadow-md">
-                    <i class="fa-brands fa-telegram text-telegram text-base"></i>
-                    <span>Telegram</span>
-                </a>
-                <a id="header-da-link" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-4 h-[38px] rounded-xl text-xs sm:text-sm font-bold bg-donations/20 hover:bg-donations/30 text-donations border border-donations/40 transition-all shadow-md">
-                    <i class="fa-solid fa-circle-dollar-to-slot text-sm"></i>
-                    <span>Донат</span>
-                </a>
+                <!-- Кнопки соцсетей и Boosty для ПК -->
+                <div class="flex items-center gap-3">
+                    <a id="dt-link-youtube" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-3.5 h-[38px] rounded-xl text-xs sm:text-sm font-semibold bg-cardbg border border-gray-700 hover:border-brand text-gray-300 hover:text-white transition-all shadow-md">
+                        <i class="fa-brands fa-youtube text-youtube text-base"></i>
+                        <span>YouTube</span>
+                    </a>
+                    
+                    <a id="dt-link-twitch" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-3.5 h-[38px] rounded-xl text-xs sm:text-sm font-semibold bg-cardbg border border-gray-700 hover:border-brand text-gray-300 hover:text-white transition-all shadow-md">
+                        <i class="fa-brands fa-twitch text-twitch text-base"></i>
+                        <span>Twitch</span>
+                    </a>
+
+                    <a id="dt-link-telegram" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-3.5 h-[38px] rounded-xl text-xs sm:text-sm font-semibold bg-cardbg border border-gray-700 hover:border-brand text-gray-300 hover:text-white transition-all shadow-md">
+                        <i class="fa-brands fa-telegram text-telegram text-base"></i>
+                        <span>Telegram</span>
+                    </a>
+
+                    <!-- Неактивный Boosty со статусом "Скоро" -->
+                    <div class="inline-flex items-center gap-2 px-3.5 h-[38px] rounded-xl text-xs sm:text-sm font-semibold bg-cardbg/50 border border-gray-800 text-gray-500 cursor-not-allowed select-none relative group">
+                        <i class="fa-solid fa-rocket text-boosty/50 text-base"></i>
+                        <span>Boosty</span>
+                        <span class="bg-gray-800 text-brand text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border border-brand/30 ml-1">Скоро</span>
+                    </div>
+                </div>
             </div>
+        </header>
 
-            <!-- Переключатель вкладок -->
-            <nav class="flex bg-cardbg p-1 rounded-xl border border-gray-700 shrink-0">
-                <button onclick="switchTab('stream')" id="tab-btn-stream" class="flex items-center justify-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-mainbg bg-brand shadow-lg">
-                    <span id="live-indicator-dot" class="relative flex h-2.5 w-2.5">
-                      <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-400"></span>
-                    </span>
-                    <span id="live-indicator-text">Оффлайн</span>
-                </button>
-                <button onclick="switchTab('links')" id="tab-btn-links" class="flex items-center justify-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-gray-300 hover:text-brand">
-                    <i class="fa-solid fa-link text-xs"></i>
-                    <span>Ссылки</span>
-                </button>
-            </nav>
-        </div>
-    </header>
-
-    <!-- Главный контент -->
-    <main class="flex-grow w-full px-4 sm:px-6 lg:px-8 py-4 flex flex-col justify-center">
-
-        <!-- ========================================== -->
-        <!-- 📺 СТРАНИЦА 1: ТРАНСЛЯЦИЯ И ЧАТ TWITCH     -->
-        <!-- ========================================== -->
-        <section id="page-stream" class="tab-content active space-y-4 w-full">
+        <!-- Основной контент ПК (Занимает почти весь экран) -->
+        <main class="flex-grow w-full px-6 lg:px-8 py-4 flex flex-col justify-center max-w-[1920px] mx-auto">
             
-            <!-- Плашка с названием стрима -->
-            <div class="bg-cardbg rounded-xl p-3 sm:p-4 border border-gray-700 flex items-center justify-between gap-3 shadow-md">
-                <div class="flex-grow min-w-0">
-                    <div id="stream-title" class="font-bold text-sm sm:text-base md:text-lg text-brand break-words whitespace-normal">
+            <!-- Плашка над плеером со статусом и названием -->
+            <div class="bg-cardbg rounded-xl p-3.5 border border-gray-700 flex items-center justify-between gap-4 shadow-md mb-4 shrink-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <span id="dt-status-badge" class="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold shrink-0 bg-gray-800 text-gray-400 border border-gray-700">
+                        <span class="relative flex h-2.5 w-2.5">
+                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-400"></span>
+                        </span>
+                        <span>ОФФЛАЙН</span>
+                    </span>
+                    <div id="dt-stream-title" class="font-bold text-base lg:text-lg text-brand truncate">
                         Загрузка названия трансляции...
                     </div>
                 </div>
             </div>
 
-            <!-- Сетка с Плеером и Чатом -->
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 items-stretch">
+            <!-- Плеер + Чат (Занимают почти весь экран) -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 items-stretch flex-grow min-h-[580px] lg:min-h-[calc(100vh-180px)]">
                 
-                <!-- Видеоплеер (3/4 ширины на ПК) -->
-                <div class="lg:col-span-3 flex flex-col space-y-4">
-                    <div class="bg-black rounded-xl overflow-hidden border border-gray-700 shadow-xl w-full relative">
-                        <div class="video-container">
-                            <!-- Оффлайн заглушка плеера (по умолчанию отображается) -->
-                            <div id="offline-placeholder" class="offline-overlay flex bg-cardbg flex-col items-center justify-center p-6 text-center z-10">
-                                <div class="w-16 h-16 sm:w-20 sm:h-20 mb-4 rounded-2xl bg-twitch/10 border border-twitch/30 flex items-center justify-center text-twitch text-3xl sm:text-4xl shadow-lg">
-                                    <i class="fa-brands fa-twitch"></i>
-                                </div>
-                                <h2 class="text-xl sm:text-2xl font-bold text-white mb-2">Стрим сейчас оффлайн</h2>
-                                <p class="text-xs sm:text-sm text-gray-400 max-w-md mb-6">Подпишись на канал, чтобы получать уведомления о начале следующей трансляции!</p>
-                                <a id="offline-follow-btn" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2.5 px-6 py-3 bg-twitch hover:bg-twitch/90 text-white font-bold rounded-xl shadow-lg transition-all transform hover:-translate-y-0.5 text-sm sm:text-base">
-                                    <i class="fa-solid fa-heart"></i>
-                                    <span>Отслеживать на Twitch</span>
-                                </a>
+                <!-- Плеер (3/4 ширины) -->
+                <div class="lg:col-span-3 flex flex-col justify-center">
+                    <div class="bg-black rounded-xl overflow-hidden border border-gray-700 shadow-2xl w-full relative h-full flex items-center min-h-[400px]">
+                        
+                        <!-- Оффлайн заглушка плеера -->
+                        <div id="dt-player-offline" class="absolute inset-0 flex bg-cardbg flex-col items-center justify-center p-8 text-center z-10">
+                            <div class="w-20 h-20 mb-4 rounded-2xl bg-twitch/10 border border-twitch/30 flex items-center justify-center text-twitch text-4xl shadow-lg">
+                                <i class="fa-brands fa-twitch"></i>
                             </div>
-
-                            <!-- iFrame Twitch Плеер -->
-                            <iframe 
-                                id="twitch-embed-player"
-                                class="hidden"
-                                src="" 
-                                allowfullscreen="true"
-                                scrolling="no">
-                            </iframe>
+                            <h2 class="text-2xl font-bold text-white mb-2">Стрим сейчас оффлайн</h2>
+                            <p class="text-sm text-gray-400 max-w-md mb-6">Подпишись на канал, чтобы получать уведомления о начале следующей трансляции!</p>
+                            <a id="dt-offline-twitch-btn" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2.5 px-6 py-3 bg-twitch hover:bg-twitch/90 text-white font-bold rounded-xl shadow-lg transition-all transform hover:-translate-y-0.5 text-base">
+                                <i class="fa-solid fa-heart"></i>
+                                <span>Отслеживать на Twitch</span>
+                            </a>
                         </div>
+
+                        <!-- iFrame Twitch Плеер -->
+                        <iframe 
+                            id="dt-twitch-player"
+                            class="w-full h-full min-h-[450px] lg:min-h-[550px] border-0 hidden"
+                            src="" 
+                            allowfullscreen="true"
+                            scrolling="no">
+                        </iframe>
                     </div>
                 </div>
 
-                <!-- Чат Twitch (1/4 ширины на ПК) -->
-                <div class="lg:col-span-1 bg-cardbg rounded-xl overflow-hidden border border-gray-700 shadow-xl h-[480px] lg:h-full flex flex-col min-h-[460px] relative">
-                    <div class="bg-cardbg px-4 py-2.5 border-b border-gray-700 flex items-center justify-between shrink-0">
+                <!-- Чат Twitch (1/4 ширины) -->
+                <div class="lg:col-span-1 bg-cardbg rounded-xl overflow-hidden border border-gray-700 shadow-2xl flex flex-col h-full min-h-[450px] relative">
+                    
+                    <!-- Шапка виджета чата ПК -->
+                    <div class="bg-cardbg px-4 py-2.5 border-b border-gray-700 flex items-center justify-between shrink-0 gap-2">
                         <span class="text-xs font-bold text-brand uppercase tracking-wider">Чат трансляции</span>
-                        <a id="direct-twitch-link" href="#" target="_blank" rel="noopener noreferrer" class="text-xs text-gray-400 hover:text-brand transition-colors flex items-center gap-1.5 font-medium" title="Открыть чат в новом окне">
-                            <span>Открыть</span>
-                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        
+                        <div class="flex items-center gap-2">
+                            <!-- Кнопка Донат прямо в шапке чата слева от кнопки "открыть в окне" -->
+                            <a id="dt-chat-donate-btn" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-donations/20 hover:bg-donations/30 text-donations border border-donations/40 transition-all shadow-sm">
+                                <i class="fa-solid fa-circle-dollar-to-slot text-xs"></i>
+                                <span>Донат</span>
+                            </a>
+
+                            <!-- Кнопка Открыть чат в отдельном окне -->
+                            <a id="dt-direct-chat-link" href="#" target="_blank" rel="noopener noreferrer" class="p-1.5 text-gray-400 hover:text-brand transition-colors rounded-lg hover:bg-gray-800" title="Открыть чат в новом окне">
+                                <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Оффлайн заглушка для чата -->
+                    <div id="dt-chat-offline" class="absolute inset-x-0 top-[45px] bottom-0 bg-cardbg flex flex-col items-center justify-center p-6 text-center z-10">
+                        <div class="w-16 h-16 mb-4 rounded-2xl bg-telegram/10 border border-telegram/30 flex items-center justify-center text-telegram text-3xl shadow-lg">
+                            <i class="fa-brands fa-telegram"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2">Чат недоступен</h3>
+                        <p class="text-xs text-gray-400 max-w-xs mb-6">Подпишись на Telegram, чтобы не пропустить следующий стрим!</p>
+                        <a id="dt-offline-tg-btn" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-5 py-2.5 bg-telegram hover:bg-telegram/90 text-white font-bold rounded-xl shadow-lg transition-all text-xs">
+                            <i class="fa-brands fa-telegram"></i>
+                            <span>Подписаться на Telegram</span>
                         </a>
                     </div>
 
-                    <!-- Оффлайн заглушка для чата (по умолчанию отображается) -->
-                    <div id="chat-offline-placeholder" class="flex absolute inset-x-0 top-[41px] bottom-0 bg-cardbg flex-col items-center justify-center p-6 text-center z-10">
-    <div class="w-16 h-16 sm:w-20 sm:h-20 mb-4 rounded-2xl bg-telegram/10 border border-telegram/30 flex items-center justify-center text-telegram text-3xl sm:text-4xl shadow-lg">
-        <i class="fa-brands fa-telegram"></i>
-    </div>
-    
-    <h2 class="text-xl sm:text-2xl font-bold text-white mb-2">Стрим оффлайн, чат недоступен</h2>
-    
-    <!-- Подзаголовок: размер text-xs sm:text-sm -->
-    <p class="text-xs sm:text-sm text-gray-400 max-w-md mb-6">Подпишись на Telegram, чтобы не пропустить следующий стрим!</p>
-    
-    <!-- Кнопка: размер текста text-sm sm:text-base, внутренние отступы px-6 py-3 -->
-    <a id="chat-offline-tg-btn" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2.5 px-6 py-3 bg-telegram hover:bg-telegram/90 text-white font-bold rounded-xl shadow-lg transition-all transform hover:-translate-y-0.5 text-sm sm:text-base">
-        <i class="fa-brands fa-telegram"></i>
-        <span>Подписаться на Telegram</span>
-    </a>
-</div>
-
                     <iframe 
-                        id="twitch-embed-chat"
+                        id="dt-twitch-chat"
                         class="w-full flex-grow border-0 h-full hidden"
                         src="">
                     </iframe>
                 </div>
-            </div>
-        </section>
 
-        <!-- ========================================== -->
-        <!-- 🔗 СТРАНИЦА 2: ССЫЛКИ И СОЦСЕТИ             -->
-        <!-- ========================================== -->
-        <section id="page-links" class="tab-content max-w-xl mx-auto py-4 sm:py-8 space-y-6 w-full">
+            </div>
+        </main>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- 📱 2. ИНТЕРФЕЙС ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ    -->
+    <!-- ========================================== -->
+    <div id="mobile-layout" class="flex md:hidden flex-col min-h-screen w-full">
+        
+        <!-- Шапка для Мобильных: Лого, статусный блок и кнопка "Смотреть" -->
+        <header class="border-b border-gray-700/60 bg-mainbg/95 backdrop-blur-md sticky top-0 z-40 px-4 h-16 flex items-center justify-between gap-2">
             
-            <div class="border-2 border-brand bg-brand/5 rounded-2xl p-5 text-center glow-brand">
-                <p class="text-sm sm:text-base font-medium text-white leading-relaxed">
+            <!-- Логотип -->
+            <a href="#" class="inline-flex items-center shrink-0">
+                <img src="https://i.postimg.cc/X7gtYcjr/logomini.png" alt="YARTZ Logo" class="h-8 w-auto object-contain" onerror="this.onerror=null; this.src='https://placehold.co/100x32/252525/60E4EE?text=YARTZ';">
+            </a>
+
+            <!-- Блок статуса и Кнопка "Смотреть" -->
+            <div class="flex items-center gap-2">
+                <div id="mob-status-pill" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-gray-800 text-gray-400 border border-gray-700">
+                    <span class="relative flex h-2 w-2">
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>
+                    </span>
+                    <span id="mob-status-text">ОФФЛАЙН</span>
+                </div>
+
+                <!-- Кнопка Смотреть: Серая/Неактивная (Off), Интерактивная (On) -->
+                <button id="mob-watch-btn" disabled onclick="openMobileStreamModal()" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed">
+                    <i class="fa-solid fa-play text-[10px] mr-1"></i> Смотреть
+                </button>
+            </div>
+        </header>
+
+        <!-- Основной контент Мобильной страницы -->
+        <main class="flex-grow px-4 py-6 flex flex-col space-y-6 max-w-lg mx-auto w-full">
+            
+            <!-- Приветственный текст -->
+            <div class="border-2 border-brand bg-brand/5 rounded-2xl p-4 text-center glow-brand">
+                <p class="text-sm font-medium text-white leading-relaxed">
                     Подпишись на все мои соцсети, чтобы оставаться на связи и не пропускать мои стримы и видео!
                 </p>
             </div>
 
-            <div class="space-y-4">
-                <a id="link-youtube" href="#" target="_blank" rel="noopener noreferrer" class="group relative flex items-center justify-between p-4 bg-cardbg border border-gray-700 rounded-xl font-semibold transition-all duration-300 glow-brand hover:-translate-y-0.5">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-lg bg-youtube/15 text-youtube flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+            <!-- Список социальный сетей -->
+            <div class="space-y-3.5 w-full">
+                
+                <!-- YouTube -->
+                <a id="mob-link-youtube" href="#" target="_blank" rel="noopener noreferrer" class="group relative flex items-center justify-between p-3.5 bg-cardbg border border-gray-700 rounded-xl font-semibold transition-all duration-300 glow-brand">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-lg bg-youtube/15 text-youtube flex items-center justify-center text-xl">
                             <i class="fa-brands fa-youtube"></i>
                         </div>
                         <div class="text-left">
-                            <div class="text-white font-bold group-hover:text-brand transition-colors text-base sm:text-lg">YouTube</div>
+                            <div class="text-white font-bold text-base">YouTube</div>
                             <div class="text-gray-400 text-xs">Стримы, видео, Shorts</div>
                         </div>
                     </div>
-                    <i class="fa-solid fa-chevron-right text-gray-500 group-hover:text-brand group-hover:translate-x-1 transition-all"></i>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
                 </a>
 
-                <a id="link-twitch" href="#" target="_blank" rel="noopener noreferrer" class="group relative flex items-center justify-between p-4 bg-cardbg border border-gray-700 rounded-xl font-semibold transition-all duration-300 glow-brand hover:-translate-y-0.5">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-lg bg-twitch/15 text-twitch flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                <!-- Twitch -->
+                <a id="mob-link-twitch" href="#" target="_blank" rel="noopener noreferrer" class="group relative flex items-center justify-between p-3.5 bg-cardbg border border-gray-700 rounded-xl font-semibold transition-all duration-300 glow-brand">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-lg bg-twitch/15 text-twitch flex items-center justify-center text-xl">
                             <i class="fa-brands fa-twitch"></i>
                         </div>
                         <div class="text-left">
-                            <div class="text-white font-bold group-hover:text-brand transition-colors text-base sm:text-lg">Twitch</div>
-                            <div class="text-gray-400 text-xs">Стримы</div>
+                            <div class="text-white font-bold text-base">Twitch</div>
+                            <div class="text-gray-400 text-xs">Прямые трансляции</div>
                         </div>
                     </div>
-                    <i class="fa-solid fa-chevron-right text-gray-500 group-hover:text-brand group-hover:translate-x-1 transition-all"></i>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
                 </a>
 
-                <a id="link-telegram" href="#" target="_blank" rel="noopener noreferrer" class="group relative flex items-center justify-between p-4 bg-cardbg border border-gray-700 rounded-xl font-semibold transition-all duration-300 glow-brand hover:-translate-y-0.5">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-lg bg-telegram/15 text-telegram flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                <!-- Telegram -->
+                <a id="mob-link-telegram" href="#" target="_blank" rel="noopener noreferrer" class="group relative flex items-center justify-between p-3.5 bg-cardbg border border-gray-700 rounded-xl font-semibold transition-all duration-300 glow-brand">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-lg bg-telegram/15 text-telegram flex items-center justify-center text-xl">
                             <i class="fa-brands fa-telegram"></i>
                         </div>
                         <div class="text-left">
-                            <div class="text-white font-bold group-hover:text-brand transition-colors text-base sm:text-lg">Telegram</div>
+                            <div class="text-white font-bold text-base">Telegram</div>
                             <div class="text-gray-400 text-xs">Анонсы и общение</div>
                         </div>
                     </div>
-                    <i class="fa-solid fa-chevron-right text-gray-500 group-hover:text-brand group-hover:translate-x-1 transition-all"></i>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
                 </a>
 
-                <a id="link-donationalerts" href="#" target="_blank" rel="noopener noreferrer" class="group relative flex items-center justify-between p-4 bg-cardbg border border-gray-700 rounded-xl font-semibold transition-all duration-300 glow-brand hover:-translate-y-0.5">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-lg bg-donations/15 text-donations flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                <!-- Донат -->
+                <a id="mob-link-donations" href="#" target="_blank" rel="noopener noreferrer" class="group relative flex items-center justify-between p-3.5 bg-cardbg border border-gray-700 rounded-xl font-semibold transition-all duration-300 glow-brand">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-lg bg-donations/15 text-donations flex items-center justify-center text-xl">
                             <i class="fa-solid fa-circle-dollar-to-slot"></i>
                         </div>
                         <div class="text-left">
-                            <div class="text-white font-bold group-hover:text-brand transition-colors text-base sm:text-lg">DonationAlerts</div>
-                            <div class="text-gray-400 text-xs">Донаты на стриме</div>
+                            <div class="text-white font-bold text-base">DonationAlerts</div>
+                            <div class="text-gray-400 text-xs">Поддержать автора</div>
                         </div>
                     </div>
-                    <i class="fa-solid fa-chevron-right text-gray-500 group-hover:text-brand group-hover:translate-x-1 transition-all"></i>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
                 </a>
 
-                <div class="relative group cursor-not-allowed opacity-50 bg-cardbg border border-gray-800 rounded-xl p-4 flex items-center justify-between select-none">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-lg bg-boosty/15 text-boosty flex items-center justify-center text-2xl">
+                <!-- Boosty (Неактивная с подписью Скоро) -->
+                <div class="relative group cursor-not-allowed opacity-60 bg-cardbg border border-gray-800 rounded-xl p-3.5 flex items-center justify-between select-none">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-lg bg-boosty/15 text-boosty flex items-center justify-center text-xl">
                             <i class="fa-solid fa-rocket"></i>
                         </div>
                         <div class="text-left">
-                            <div class="text-gray-300 font-bold flex items-center gap-2 text-base sm:text-lg">
+                            <div class="text-gray-300 font-bold flex items-center gap-2 text-base">
                                 Boosty
-                                <span class="bg-gray-800 text-brand text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-brand/40">Скоро</span>
+                                <span class="bg-gray-800 text-brand text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border border-brand/40">Скоро</span>
                             </div>
-                            <div class="text-gray-500 text-xs">Эксклюзивные материалы</div>
+                            <div class="text-gray-500 text-xs">Эксклюзивный контент</div>
                         </div>
                     </div>
-                    <i class="fa-solid fa-lock text-gray-600"></i>
+                    <i class="fa-solid fa-lock text-gray-600 text-sm"></i>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- 📺 3. Окно стрима для мобильных устройств  -->
+    <!-- ========================================== -->
+    <div id="mobile-stream-modal" class="fixed inset-0 bg-mainbg z-50 hidden flex-col w-full h-full overflow-hidden">
+        
+        <!-- ВЕРТИКАЛЬНЫЙ ФОРМАТ: Шапка -->
+        <header id="mob-modal-header" class="border-b border-gray-700/60 bg-mainbg px-3 py-2.5 flex items-center justify-between gap-2 shrink-0">
+            <div class="flex items-center gap-2 min-w-0">
+                <button onclick="closeMobileStreamModal()" class="p-1.5 text-gray-400 hover:text-white rounded-lg bg-cardbg border border-gray-700 shrink-0">
+                    <i class="fa-solid fa-arrow-left text-sm"></i>
+                </button>
+                <img src="https://i.postimg.cc/X7gtYcjr/logomini.png" alt="YARTZ Logo" class="h-6 w-auto object-contain shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/80x24/252525/60E4EE?text=YARTZ';">
+                <span id="mob-modal-title" class="text-xs font-semibold text-brand truncate max-w-[140px] sm:max-w-xs">
+                    Название стрима
+                </span>
+            </div>
+
+            <!-- Кнопка Донат -->
+            <a id="mob-modal-donate-btn" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-donations text-mainbg transition-all shrink-0 shadow-md">
+                <i class="fa-solid fa-circle-dollar-to-slot"></i>
+                <span>Донат</span>
+            </a>
+        </header>
+
+        <!-- ГОРИЗОНТАЛЬНЫЙ ФОРМАТ: Полупрозрачная плашка поверх плеера (Лого + Донат) -->
+        <div id="mob-modal-landscape-overlay" class="hidden absolute top-3 left-3 z-30 bg-black/60 backdrop-blur-md rounded-xl p-2 border border-white/10 flex items-center gap-3">
+            <button onclick="closeMobileStreamModal()" class="p-1 text-gray-300 hover:text-white">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+            <img src="https://i.postimg.cc/X7gtYcjr/logomini.png" alt="YARTZ Logo" class="h-5 w-auto object-contain">
+            <a id="mob-landscape-donate-btn" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-donations text-mainbg">
+                <i class="fa-solid fa-circle-dollar-to-slot text-[10px]"></i>
+                <span>Донат</span>
+            </a>
+        </div>
+
+        <!-- Контент МОДАЛКИ (Вертикальный & Горизонтальный) -->
+        <div class="flex-grow flex flex-col w-full h-full overflow-hidden p-2 space-y-2">
+            
+            <!-- Плеер стрима во всю ширину с небольшими отступами -->
+            <div id="mob-player-wrapper" class="w-full shrink-0 bg-black rounded-xl overflow-hidden border border-gray-700 relative">
+                <div class="video-container">
+                    <iframe 
+                        id="mob-twitch-player"
+                        class="w-full h-full border-0"
+                        src="" 
+                        allowfullscreen="true"
+                        scrolling="no">
+                    </iframe>
                 </div>
             </div>
-        </section>
 
-    </main>
+            <!-- Под плеером виджет чата -->
+            <div id="mob-chat-wrapper" class="w-full flex-grow bg-cardbg rounded-xl overflow-hidden border border-gray-700 relative flex flex-col min-h-0">
+                <iframe 
+                    id="mob-twitch-chat"
+                    class="w-full flex-grow border-0 h-full"
+                    src="">
+                </iframe>
+            </div>
 
-    <!-- Логика работы -->
+        </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- ⚙️ JS ЛОГИКА И АВТОМАТИЗАЦИЯ               -->
+    <!-- ========================================== -->
     <script>
-        function switchTab(tabName) {
-            const streamTab = document.getElementById('page-stream');
-            const linksTab = document.getElementById('page-links');
-            const btnStream = document.getElementById('tab-btn-stream');
-            const btnLinks = document.getElementById('tab-btn-links');
+        // Инициализация ссылок из конфига
+        function initLinks() {
+            const urls = STREAMER_CONFIG.urls;
 
-            if (tabName === 'stream') {
-                streamTab.classList.add('active');
-                linksTab.classList.remove('active');
-                
-                btnStream.className = "flex items-center justify-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-mainbg bg-brand shadow-lg";
-                btnLinks.className = "flex items-center justify-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-gray-300 hover:text-brand";
-            } else {
-                linksTab.classList.add('active');
-                streamTab.classList.remove('active');
+            // ПК ссылки
+            document.getElementById('dt-link-youtube').href = urls.youtube;
+            document.getElementById('dt-link-twitch').href = urls.twitch;
+            document.getElementById('dt-link-telegram').href = urls.telegram;
+            document.getElementById('dt-chat-donate-btn').href = urls.donationAlerts;
+            document.getElementById('dt-direct-chat-link').href = `https://twitch.tv/popout/${STREAMER_CONFIG.twitchUsername}/chat?popout=`;
+            document.getElementById('dt-offline-twitch-btn').href = urls.twitch;
+            document.getElementById('dt-offline-tg-btn').href = urls.telegram;
 
-                btnLinks.className = "flex items-center justify-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-mainbg bg-brand shadow-lg";
-                btnStream.className = "flex items-center justify-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-gray-300 hover:text-brand";
-            }
+            // Мобильные ссылки
+            document.getElementById('mob-link-youtube').href = urls.youtube;
+            document.getElementById('mob-link-twitch').href = urls.twitch;
+            document.getElementById('mob-link-telegram').href = urls.telegram;
+            document.getElementById('mob-link-donations').href = urls.donationAlerts;
+            document.getElementById('mob-modal-donate-btn').href = urls.donationAlerts;
+            document.getElementById('mob-landscape-donate-btn').href = urls.donationAlerts;
         }
 
-        async function checkLiveStatus(username) {
-            const dot = document.getElementById('live-indicator-dot');
-            const text = document.getElementById('live-indicator-text');
-            const titleElement = document.getElementById('stream-title');
-            const offlinePlaceholder = document.getElementById('offline-placeholder');
-            const chatOfflinePlaceholder = document.getElementById('chat-offline-placeholder');
-            const playerIframe = document.getElementById('twitch-embed-player');
-            const chatIframe = document.getElementById('twitch-embed-chat');
+        // Загрузка Twitch плеера и чата
+        function setupTwitchEmbeds() {
+            let parentHost = window.location.hostname || STREAMER_CONFIG.parentDomain;
+            if (!parentHost || parentHost === "" || parentHost === "localhost") {
+                parentHost = STREAMER_CONFIG.parentDomain;
+            }
 
-            if (!dot || !text || !titleElement) return;
+            const username = STREAMER_CONFIG.twitchUsername;
+            const playerUrl = `https://player.twitch.tv/?channel=${username}&parent=${parentHost}&parent=${STREAMER_CONFIG.parentDomain}&parent=localhost&autoplay=true`;
+            const chatUrl = `https://www.twitch.tv/embed/${username}/chat?parent=${parentHost}&parent=${STREAMER_CONFIG.parentDomain}&parent=localhost&darkpopout`;
+
+            // Установка src для ПК
+            document.getElementById('dt-twitch-player').src = playerUrl;
+            document.getElementById('dt-twitch-chat').src = chatUrl;
+
+            // Установка src для Мобильных
+            document.getElementById('mob-twitch-player').src = playerUrl;
+            document.getElementById('mob-twitch-chat').src = chatUrl;
+        }
+
+        // Проверка онлайн-статуса трансляции
+        async function checkLiveStatus() {
+            const username = STREAMER_CONFIG.twitchUsername;
 
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3000);
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
 
                 const res = await fetch(`https://decapi.me/twitch/uptime/${username}`, { signal: controller.signal });
                 clearTimeout(timeoutId);
-                
                 const uptimeText = await res.text();
 
                 const isOnline = !uptimeText.includes('offline') && 
@@ -369,107 +511,149 @@
                                  !uptimeText.includes('is not live') && 
                                  uptimeText.trim() !== '';
 
-                if (isOnline) {
-                    dot.innerHTML = `
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 pulse-live"></span>
-                    `;
-                    text.textContent = 'Трансляция';
-                    
-                    if (offlinePlaceholder) {
-                        offlinePlaceholder.classList.add('hidden');
-                        offlinePlaceholder.classList.remove('flex');
-                    }
-                    if (chatOfflinePlaceholder) {
-                        chatOfflinePlaceholder.classList.add('hidden');
-                        chatOfflinePlaceholder.classList.remove('flex');
-                    }
-                    if (playerIframe) playerIframe.classList.remove('hidden');
-                    if (chatIframe) chatIframe.classList.remove('hidden');
+                state.isOnline = isOnline;
 
+                if (isOnline) {
+                    // Получаем название стрима
                     try {
                         const titleRes = await fetch(`https://decapi.me/twitch/title/${username}`);
                         const streamTitle = await titleRes.text();
-                        titleElement.textContent = (!streamTitle.includes('error') && streamTitle.trim() !== '') ? streamTitle : STREAMER_CONFIG.defaultStreamTitle;
-                    } catch (err) {
-                        titleElement.textContent = STREAMER_CONFIG.defaultStreamTitle;
+                        state.streamTitle = (!streamTitle.includes('error') && streamTitle.trim() !== '') ? streamTitle : STREAMER_CONFIG.defaultStreamTitle;
+                    } catch (e) {
+                        state.streamTitle = STREAMER_CONFIG.defaultStreamTitle;
                     }
                 } else {
-                    dot.innerHTML = `<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-400"></span>`;
-                    text.textContent = 'Оффлайн';
-                    titleElement.textContent = "Трансляция оффлайн | Подпишись на мои соцсети и следи за новостями!";
-
-                    if (offlinePlaceholder) {
-                        offlinePlaceholder.classList.remove('hidden');
-                        offlinePlaceholder.classList.add('flex');
-                    }
-                    if (chatOfflinePlaceholder) {
-                        chatOfflinePlaceholder.classList.remove('hidden');
-                        chatOfflinePlaceholder.classList.add('flex');
-                    }
-                    if (playerIframe) playerIframe.classList.add('hidden');
-                    if (chatIframe) chatIframe.classList.add('hidden');
+                    state.streamTitle = "Трансляция оффлайн | Подпишись на мои соцсети, чтобы не пропустить следующий стрим";
                 }
+
+                updateUI();
             } catch (e) {
-                dot.innerHTML = `<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-400"></span>`;
-                text.textContent = 'Оффлайн';
-                titleElement.textContent = STREAMER_CONFIG.defaultStreamTitle;
-
-                if (offlinePlaceholder) {
-                    offlinePlaceholder.classList.remove('hidden');
-                    offlinePlaceholder.classList.add('flex');
-                }
-                if (chatOfflinePlaceholder) {
-                    chatOfflinePlaceholder.classList.remove('hidden');
-                    chatOfflinePlaceholder.classList.add('flex');
-                }
-                if (playerIframe) playerIframe.classList.add('hidden');
-                if (chatIframe) chatIframe.classList.add('hidden');
+                state.isOnline = false;
+                state.streamTitle = STREAMER_CONFIG.defaultStreamTitle;
+                updateUI();
             }
         }
 
+        // Обновление интерфейса на основе состояния
+        function updateUI() {
+            // --- ПК ИНТЕРФЕЙС ---
+            const dtStatusBadge = document.getElementById('dt-status-badge');
+            const dtStreamTitle = document.getElementById('dt-stream-title');
+            const dtPlayerOffline = document.getElementById('dt-player-offline');
+            const dtTwitchPlayer = document.getElementById('dt-twitch-player');
+            const dtChatOffline = document.getElementById('dt-chat-offline');
+            const dtTwitchChat = document.getElementById('dt-twitch-chat');
+
+            dtStreamTitle.textContent = state.streamTitle;
+
+            if (state.isOnline) {
+                dtStatusBadge.className = "inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold shrink-0 bg-red-500/20 text-red-400 border border-red-500/40";
+                dtStatusBadge.innerHTML = `
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 pulse-live"></span>
+                    </span>
+                    <span>В ЭФИРЕ</span>
+                `;
+
+                dtPlayerOffline.classList.add('hidden');
+                dtTwitchPlayer.classList.remove('hidden');
+                dtChatOffline.classList.add('hidden');
+                dtTwitchChat.classList.remove('hidden');
+            } else {
+                dtStatusBadge.className = "inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold shrink-0 bg-gray-800 text-gray-400 border border-gray-700";
+                dtStatusBadge.innerHTML = `
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-400"></span>
+                    </span>
+                    <span>ОФФЛАЙН</span>
+                `;
+
+                dtPlayerOffline.classList.remove('hidden');
+                dtTwitchPlayer.classList.add('hidden');
+                dtChatOffline.classList.remove('hidden');
+                dtTwitchChat.classList.add('hidden');
+            }
+
+            // --- МОБИЛЬНЫЙ ИНТЕРФЕЙС ---
+            const mobStatusPill = document.getElementById('mob-status-pill');
+            const mobStatusText = document.getElementById('mob-status-text');
+            const mobWatchBtn = document.getElementById('mob-watch-btn');
+            const mobModalTitle = document.getElementById('mob-modal-title');
+
+            mobModalTitle.textContent = state.streamTitle;
+
+            if (state.isOnline) {
+                mobStatusPill.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/20 text-red-400 border border-red-500/40";
+                mobStatusText.textContent = "В ЭФИРЕ";
+
+                // Делаем кнопку "Смотреть" интерактивной
+                mobWatchBtn.disabled = false;
+                mobWatchBtn.className = "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-lg bg-brand hover:bg-brandhover text-mainbg border border-brand cursor-pointer pulse-live";
+            } else {
+                mobStatusPill.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-gray-800 text-gray-400 border border-gray-700";
+                mobStatusText.textContent = "ОФФЛАЙН";
+
+                // Серые оффлайн кнопки
+                mobWatchBtn.disabled = true;
+                mobWatchBtn.className = "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed";
+            }
+        }
+
+        // Открытие мобильного модального окна стрима
+        function openMobileStreamModal() {
+            if (!state.isOnline) return;
+            state.mobileModalOpen = true;
+            const modal = document.getElementById('mobile-stream-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+            handleOrientationChange();
+        }
+
+        // Закрытие мобильного модального окна стрима
+        function closeMobileStreamModal() {
+            state.mobileModalOpen = false;
+            const modal = document.getElementById('mobile-stream-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = '';
+        }
+
+        // Обработка ориентации экрана для мобильных устройств
+        function handleOrientationChange() {
+            if (!state.mobileModalOpen) return;
+
+            const isLandscape = window.innerWidth > window.innerHeight;
+            const mobHeader = document.getElementById('mob-modal-header');
+            const landscapeOverlay = document.getElementById('mob-modal-landscape-overlay');
+
+            if (isLandscape) {
+                // Горизонтальный формат: Скрываем обычную шапку, показываем overlay поверх плеера
+                mobHeader.classList.add('hidden');
+                mobHeader.classList.remove('flex');
+                landscapeOverlay.classList.remove('hidden');
+                landscapeOverlay.classList.add('flex');
+            } else {
+                // Вертикальный формат: Показываем обычную шапку
+                mobHeader.classList.remove('hidden');
+                mobHeader.classList.add('flex');
+                landscapeOverlay.classList.add('hidden');
+                landscapeOverlay.classList.remove('flex');
+            }
+        }
+
+        // Слушатели событий
+        window.addEventListener('resize', handleOrientationChange);
+        window.addEventListener('orientationchange', handleOrientationChange);
+
         window.addEventListener('DOMContentLoaded', () => {
-            const config = STREAMER_CONFIG;
+            initLinks();
+            setupTwitchEmbeds();
+            checkLiveStatus();
 
-            let parentHost = window.location.hostname || config.parentDomain;
-            if (!parentHost || parentHost === "" || parentHost === "localhost") {
-                parentHost = config.parentDomain;
-            }
-
-            const playerEl = document.getElementById('twitch-embed-player');
-            const chatEl = document.getElementById('twitch-embed-chat');
-            
-            if (playerEl) {
-                playerEl.src = `https://player.twitch.tv/?channel=${config.twitchUsername}&parent=${parentHost}&parent=${config.parentDomain}&parent=localhost&autoplay=true`;
-            }
-            if (chatEl) {
-                chatEl.src = `https://www.twitch.tv/embed/${config.twitchUsername}/chat?parent=${parentHost}&parent=${config.parentDomain}&parent=localhost&darkpopout`;
-            }
-
-            const daLink = document.getElementById('header-da-link');
-            const headerYtBtn = document.getElementById('header-yt-btn');
-            const headerTgBtn = document.getElementById('header-tg-btn');
-            const directTwitch = document.getElementById('direct-twitch-link');
-            const linkYoutube = document.getElementById('link-youtube');
-            const linkTwitch = document.getElementById('link-twitch');
-            const linkTelegram = document.getElementById('link-telegram');
-            const linkDonationalerts = document.getElementById('link-donationalerts');
-            const offlineFollowBtn = document.getElementById('offline-follow-btn');
-            const chatOfflineTgBtn = document.getElementById('chat-offline-tg-btn');
-
-            if (daLink) daLink.href = config.urls.donationAlerts;
-            if (headerYtBtn) headerYtBtn.href = config.urls.youtube;
-            if (headerTgBtn) headerTgBtn.href = config.urls.telegram;
-            if (directTwitch) directTwitch.href = `https://twitch.tv/popout/${config.twitchUsername}/chat?popout=`;
-            if (linkYoutube) linkYoutube.href = config.urls.youtube;
-            if (linkTwitch) linkTwitch.href = config.urls.twitch;
-            if (linkTelegram) linkTelegram.href = config.urls.telegram;
-            if (linkDonationalerts) linkDonationalerts.href = config.urls.donationAlerts;
-            if (offlineFollowBtn) offlineFollowBtn.href = config.urls.twitch;
-            if (chatOfflineTgBtn) chatOfflineTgBtn.href = config.urls.telegram;
-
-            checkLiveStatus(config.twitchUsername);
-            setInterval(() => checkLiveStatus(config.twitchUsername), 60000);
+            // Автообновление каждые 45 секунд
+            setInterval(checkLiveStatus, 45000);
         });
     </script>
 </body>
