@@ -193,7 +193,7 @@
                         <span class="relative flex h-2.5 w-2.5">
                             <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-400"></span>
                         </span>
-                        <span>ОФФЛАЙН</span>
+                        <span>Off</span>
                     </span>
                     <div id="dt-stream-title" class="font-bold text-base lg:text-lg text-brand truncate">
                         Загрузка названия трансляции...
@@ -283,7 +283,7 @@
     <!-- ========================================== -->
     <div id="mobile-layout" class="flex md:hidden flex-col min-h-screen w-full">
         
-        <!-- Шапка для Мобильных: Лого, статусный блок и кнопка "Смотреть" -->
+        <!-- Шапка для Мобильных: Лого и встроенная кнопка "Смотреть" со статусом -->
         <header class="border-b border-gray-700/60 bg-mainbg/95 backdrop-blur-md sticky top-0 z-40 px-4 h-16 flex items-center justify-between gap-2">
             
             <!-- Логотип -->
@@ -291,20 +291,14 @@
                 <img src="https://i.postimg.cc/X7gtYcjr/logomini.png" alt="YARTZ Logo" class="h-8 w-auto object-contain" onerror="this.onerror=null; this.src='https://placehold.co/100x32/252525/60E4EE?text=YARTZ';">
             </a>
 
-            <!-- Блок статуса и Кнопка "Смотреть" -->
-            <div class="flex items-center gap-2">
-                <div id="mob-status-pill" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-gray-800 text-gray-400 border border-gray-700">
-                    <span class="relative flex h-2 w-2">
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>
-                    </span>
-                    <span id="mob-status-text">ОФФЛАЙН</span>
-                </div>
-
-                <!-- Кнопка Смотреть: Серая/Неактивная (Off), Интерактивная (On) -->
-                <button id="mob-watch-btn" disabled onclick="openMobileStreamModal()" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed">
-                    <i class="fa-solid fa-play text-[10px] mr-1"></i> Смотреть
-                </button>
-            </div>
+            <!-- Интегрированная кнопка "Смотреть" со статусом (Off / LIVE) -->
+            <button id="mob-watch-btn" disabled onclick="openMobileStreamModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed flex items-center gap-2">
+                <span class="relative flex h-2 w-2">
+                    <span id="mob-btn-dot-ping" class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>
+                </span>
+                <span>Смотреть</span>
+                <span id="mob-btn-status-text" class="uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-gray-900/60 text-gray-400">Off</span>
+            </button>
         </header>
 
         <!-- Основной контент Мобильной страницы -->
@@ -568,7 +562,7 @@
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 pulse-live"></span>
                     </span>
-                    <span>В ЭФИРЕ</span>
+                    <span>LIVE</span>
                 `;
 
                 dtPlayerOffline.classList.add('hidden');
@@ -581,7 +575,7 @@
                     <span class="relative flex h-2.5 w-2.5">
                         <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-400"></span>
                     </span>
-                    <span>ОФФЛАЙН</span>
+                    <span>Off</span>
                 `;
 
                 dtPlayerOffline.classList.remove('hidden');
@@ -591,27 +585,36 @@
             }
 
             // --- МОБИЛЬНЫЙ ИНТЕРФЕЙС ---
-            const mobStatusPill = document.getElementById('mob-status-pill');
-            const mobStatusText = document.getElementById('mob-status-text');
             const mobWatchBtn = document.getElementById('mob-watch-btn');
+            const mobBtnDotPing = document.getElementById('mob-btn-dot-ping');
+            const mobBtnStatusText = document.getElementById('mob-btn-status-text');
             const mobModalTitle = document.getElementById('mob-modal-title');
 
             mobModalTitle.textContent = state.streamTitle;
 
             if (state.isOnline) {
-                mobStatusPill.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/20 text-red-400 border border-red-500/40";
-                mobStatusText.textContent = "В ЭФИРЕ";
-
-                // Делаем кнопку "Смотреть" интерактивной
+                // Кнопка Смотреть в режиме LIVE
                 mobWatchBtn.disabled = false;
-                mobWatchBtn.className = "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-lg bg-brand hover:bg-brandhover text-mainbg border border-brand cursor-pointer pulse-live";
+                mobWatchBtn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-lg bg-brand hover:bg-brandhover text-mainbg border border-brand cursor-pointer pulse-live flex items-center gap-2";
+                
+                mobBtnDotPing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75";
+                // Добавим саму точку для анимации пульсации
+                mobBtnDotPing.parentElement.innerHTML = `
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                `;
+                
+                mobBtnStatusText.className = "uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-bold border border-red-500/30";
+                mobBtnStatusText.textContent = "LIVE";
             } else {
-                mobStatusPill.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-gray-800 text-gray-400 border border-gray-700";
-                mobStatusText.textContent = "ОФФЛАЙН";
-
-                // Серые оффлайн кнопки
+                // Кнопка Смотреть в режиме Off
                 mobWatchBtn.disabled = true;
-                mobWatchBtn.className = "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed";
+                mobWatchBtn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed flex items-center gap-2";
+                
+                mobBtnDotPing.parentElement.innerHTML = `<span class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>`;
+                
+                mobBtnStatusText.className = "uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-gray-900 text-gray-400 border border-gray-700";
+                mobBtnStatusText.textContent = "Off";
             }
         }
 
@@ -644,13 +647,11 @@
             const landscapeOverlay = document.getElementById('mob-modal-landscape-overlay');
 
             if (isLandscape) {
-                // Горизонтальный формат: Скрываем обычную шапку, показываем overlay поверх плеера
                 mobHeader.classList.add('hidden');
                 mobHeader.classList.remove('flex');
                 landscapeOverlay.classList.remove('hidden');
                 landscapeOverlay.classList.add('flex');
             } else {
-                // Вертикальный формат: Показываем обычную шапку
                 mobHeader.classList.remove('hidden');
                 mobHeader.classList.add('flex');
                 landscapeOverlay.classList.add('hidden');
@@ -658,7 +659,6 @@
             }
         }
 
-        // Слушатели событий
         window.addEventListener('resize', handleOrientationChange);
         window.addEventListener('orientationchange', handleOrientationChange);
 
@@ -667,7 +667,6 @@
             setupTwitchEmbeds();
             checkLiveStatus();
 
-            // Автообновление каждые 45 секунд
             setInterval(checkLiveStatus, 45000);
         });
     </script>
