@@ -143,6 +143,9 @@
             streamTitle: STREAMER_CONFIG.offlineStreamTitle,
             mobileModalOpen: false
         };
+
+        // Флаг для отслеживания предыдущего состояния и предотвращения лишних перезагрузок ифреймов
+        let previousOnlineState = null;
     </script>
 
     <!-- ========================================== -->
@@ -295,14 +298,14 @@
             </a>
 
             <!-- Интегрированная кнопка "Смотреть" со статусом (Off / LIVE) -->
-        <button id="mob-watch-btn" disabled onclick="openMobileStreamModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed flex items-center gap-2">
-            <span id="mob-btn-dot-container" class="relative flex h-2 w-2">
-                <span id="mob-btn-dot-ping" class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>
-            </span>
-            <span>Смотреть</span>
-            <span id="mob-btn-status-text" class="uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-gray-900/60 text-gray-400">Off</span>
-        </button>
-    </header>
+            <button id="mob-watch-btn" disabled onclick="openMobileStreamModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed flex items-center gap-2">
+                <span id="mob-btn-dot-container" class="relative flex h-2 w-2">
+                    <span id="mob-btn-dot-ping" class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>
+                </span>
+                <span>Смотреть</span>
+                <span id="mob-btn-status-text" class="uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-gray-900/60 text-gray-400">Off</span>
+            </button>
+        </header>
 
         <!-- Основной контент Мобильной страницы -->
         <main class="flex-grow px-4 py-6 flex flex-col space-y-6 max-w-lg mx-auto w-full">
@@ -486,7 +489,7 @@
             document.getElementById('mob-landscape-donate-btn').href = urls.donationAlerts;
         }
 
-        // Загрузка Twitch плеера и чата
+        // Загрузка Twitch плеера и чата (вызывается строго 1 раз при старте)
         function setupTwitchEmbeds() {
             let parentHost = window.location.hostname || STREAMER_CONFIG.parentDomain;
             if (!parentHost || parentHost === "" || parentHost === "localhost") {
@@ -568,6 +571,21 @@
 
             dtStreamTitle.textContent = state.streamTitle;
 
+            // Меняем видимость элементов плеера/чата только если статус изменился или при первом запуске
+            if (previousOnlineState !== state.isOnline) {
+                if (state.isOnline) {
+                    dtPlayerOffline.classList.add('hidden');
+                    dtTwitchPlayer.classList.remove('hidden');
+                    dtChatOffline.classList.add('hidden');
+                    dtTwitchChat.classList.remove('hidden');
+                } else {
+                    dtPlayerOffline.classList.remove('hidden');
+                    dtTwitchPlayer.classList.add('hidden');
+                    dtChatOffline.classList.remove('hidden');
+                    dtTwitchChat.classList.add('hidden');
+                }
+            }
+
             if (state.isOnline) {
                 dtStatusBadge.className = "inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold shrink-0 bg-red-500/20 text-red-400 border border-red-500/40";
                 dtStatusBadge.innerHTML = `
@@ -577,11 +595,6 @@
                     </span>
                     <span>LIVE</span>
                 `;
-
-                dtPlayerOffline.classList.add('hidden');
-                dtTwitchPlayer.classList.remove('hidden');
-                dtChatOffline.classList.add('hidden');
-                dtTwitchChat.classList.remove('hidden');
             } else {
                 dtStatusBadge.className = "inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold shrink-0 bg-gray-800 text-gray-400 border border-gray-700";
                 dtStatusBadge.innerHTML = `
@@ -590,11 +603,6 @@
                     </span>
                     <span>Off</span>
                 `;
-
-                dtPlayerOffline.classList.remove('hidden');
-                dtTwitchPlayer.classList.add('hidden');
-                dtChatOffline.classList.remove('hidden');
-                dtTwitchChat.classList.add('hidden');
             }
 
             // --- МОБИЛЬНЫЙ ИНТЕРФЕЙС ---
@@ -606,7 +614,6 @@
             mobModalTitle.textContent = state.streamTitle;
 
             if (state.isOnline) {
-                // Кнопка Смотреть в режиме LIVE
                 mobWatchBtn.disabled = false;
                 mobWatchBtn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-lg bg-brand hover:bg-brandhover text-mainbg border border-brand cursor-pointer pulse-live flex items-center gap-2";
                 
@@ -618,7 +625,6 @@
                 mobBtnStatusText.className = "uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-bold border border-red-500/30";
                 mobBtnStatusText.textContent = "LIVE";
             } else {
-                // Кнопка Смотреть в режиме Off
                 mobWatchBtn.disabled = true;
                 mobWatchBtn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed flex items-center gap-2";
                 
@@ -627,6 +633,9 @@
                 mobBtnStatusText.className = "uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-gray-900 text-gray-400 border border-gray-700";
                 mobBtnStatusText.textContent = "Off";
             }
+
+            // Запоминаем текущий статус, чтобы ифреймы не дергались при каждом опросе
+            previousOnlineState = state.isOnline;
         }
 
         // Открытие мобильного модального окна стрима
@@ -675,9 +684,10 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             initLinks();
-            setupTwitchEmbeds();
+            setupTwitchEmbeds(); // Загружаем плеер и чат единожды при старте
             checkLiveStatus();
 
+            // Опрос статуса каждые 30 секунд (без перезагрузки ифреймов при неизменном статусе)
             setInterval(checkLiveStatus, 30000);
         });
     </script>
