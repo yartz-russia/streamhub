@@ -132,13 +132,15 @@
                 boosty: "https://boosty.to" 
             },
 
-            defaultStreamTitle: "Ошибка подключения | Подпишись на мои соцсети, чтобы не пропустить следующий стрим"
+            offlineStreamTitle: "Трансляция оффлайн | Подпишись на мои соцсети, чтобы не пропустить следующий стрим",
+            errorStreamTitle: "Ошибка подключения | Подпишись на мои соцсети, чтобы не пропустить следующий стрим",
+            defaultOnlineTitle: "Прямая трансляция YARTZ"
         };
 
         // Состояние приложения
         let state = {
             isOnline: false,
-            streamTitle: STREAMER_CONFIG.defaultStreamTitle,
+            streamTitle: STREAMER_CONFIG.offlineStreamTitle,
             mobileModalOpen: false
         };
     </script>
@@ -293,14 +295,14 @@
             </a>
 
             <!-- Интегрированная кнопка "Смотреть" со статусом (Off / LIVE) -->
-            <button id="mob-watch-btn" disabled onclick="openMobileStreamModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed flex items-center gap-2">
-                <span class="relative flex h-2 w-2">
-                    <span id="mob-btn-dot-ping" class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>
-                </span>
-                <span>Смотреть</span>
-                <span id="mob-btn-status-text" class="uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-gray-900/60 text-gray-400">Off</span>
-            </button>
-        </header>
+        <button id="mob-watch-btn" disabled onclick="openMobileStreamModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed flex items-center gap-2">
+            <span id="mob-btn-dot-container" class="relative flex h-2 w-2">
+                <span id="mob-btn-dot-ping" class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>
+            </span>
+            <span>Смотреть</span>
+            <span id="mob-btn-status-text" class="uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-gray-900/60 text-gray-400">Off</span>
+        </button>
+    </header>
 
         <!-- Основной контент Мобильной страницы -->
         <main class="flex-grow px-4 py-6 flex flex-col space-y-6 max-w-lg mx-auto w-full">
@@ -510,36 +512,46 @@
 
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 4000);
+                const timeoutId = setTimeout(() => controller.abort(), 6000);
 
                 const res = await fetch(`https://decapi.me/twitch/uptime/${username}`, { signal: controller.signal });
                 clearTimeout(timeoutId);
                 const uptimeText = await res.text();
 
+                // Проверяем, вернул ли API явный сбой в ответе 200 OK
+                if (uptimeText.includes('error')) {
+                    throw new Error("DecAPI Error Response");
+                }
+
                 const isOnline = !uptimeText.includes('offline') && 
-                                 !uptimeText.includes('error') && 
                                  !uptimeText.includes('is not live') && 
                                  uptimeText.trim() !== '';
 
                 state.isOnline = isOnline;
 
-                if (isOnline) {
-                    // Получаем название стрима
-                    try {
-                        const titleRes = await fetch(`https://decapi.me/twitch/title/${username}`);
-                        const streamTitle = await titleRes.text();
-                        state.streamTitle = (!streamTitle.includes('error') && streamTitle.trim() !== '') ? streamTitle : STREAMER_CONFIG.defaultStreamTitle;
-                    } catch (e) {
-                        state.streamTitle = STREAMER_CONFIG.defaultStreamTitle;
-                    }
-                } else {
-                    state.streamTitle = "Трансляция оффлайн | Подпишись на мои соцсети, чтобы не пропустить следующий стрим";
+                // 1. Если СТРИМ ОФФЛАЙН — показываем стандартный оффлайн-текст
+                if (!isOnline) {
+                    state.streamTitle = STREAMER_CONFIG.offlineStreamTitle;
+                    updateUI();
+                    return;
+                }
+
+                // 2. Если СТРИМ ОНЛАЙН — запрашиваем название
+                try {
+                    const titleRes = await fetch(`https://decapi.me/twitch/title/${username}`);
+                    const streamTitle = await titleRes.text();
+                    state.streamTitle = (!streamTitle.includes('error') && streamTitle.trim() !== '') 
+                        ? streamTitle 
+                        : STREAMER_CONFIG.defaultOnlineTitle;
+                } catch (e) {
+                    state.streamTitle = STREAMER_CONFIG.defaultOnlineTitle;
                 }
 
                 updateUI();
             } catch (e) {
+                // 3. ПРИ ЛЮБОЙ СЕТЕВОЙ ОШИБКЕ ИЛИ ТАЙМАУТЕ — СТРОГО ВЫВОДИМ ОШИБКУ ПОДКЛЮЧЕНИЯ
                 state.isOnline = false;
-                state.streamTitle = STREAMER_CONFIG.defaultStreamTitle;
+                state.streamTitle = STREAMER_CONFIG.errorStreamTitle;
                 updateUI();
             }
         }
@@ -587,7 +599,7 @@
 
             // --- МОБИЛЬНЫЙ ИНТЕРФЕЙС ---
             const mobWatchBtn = document.getElementById('mob-watch-btn');
-            const mobBtnDotPing = document.getElementById('mob-btn-dot-ping');
+            const mobBtnDotContainer = document.getElementById('mob-btn-dot-container');
             const mobBtnStatusText = document.getElementById('mob-btn-status-text');
             const mobModalTitle = document.getElementById('mob-modal-title');
 
@@ -598,9 +610,7 @@
                 mobWatchBtn.disabled = false;
                 mobWatchBtn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-lg bg-brand hover:bg-brandhover text-mainbg border border-brand cursor-pointer pulse-live flex items-center gap-2";
                 
-                mobBtnDotPing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75";
-                // Добавим саму точку для анимации пульсации
-                mobBtnDotPing.parentElement.innerHTML = `
+                mobBtnDotContainer.innerHTML = `
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                 `;
@@ -612,7 +622,7 @@
                 mobWatchBtn.disabled = true;
                 mobWatchBtn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed flex items-center gap-2";
                 
-                mobBtnDotPing.parentElement.innerHTML = `<span class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>`;
+                mobBtnDotContainer.innerHTML = `<span class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>`;
                 
                 mobBtnStatusText.className = "uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-gray-900 text-gray-400 border border-gray-700";
                 mobBtnStatusText.textContent = "Off";
@@ -668,7 +678,7 @@
             setupTwitchEmbeds();
             checkLiveStatus();
 
-            setInterval(checkLiveStatus, 15000);
+            setInterval(checkLiveStatus, 30000);
         });
     </script>
 </body>
