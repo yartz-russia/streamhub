@@ -512,7 +512,7 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-                const res = await fetch(`https://decapi.me/twitch/uptime/${username}?_t=${Date.now()}`, { signal: controller.signal });
+                const res = await fetch(`https://decapi.me/twitch/uptime/${username}`, { signal: controller.signal });
                 clearTimeout(timeoutId);
                 const uptimeText = await res.text();
 
@@ -526,7 +526,7 @@
                 if (isOnline) {
                     // Получаем название стрима
                     try {
-                        const titleRes = await fetch(`https://decapi.me/twitch/title/${username}?_t=${Date.now()}`);
+                        const titleRes = await fetch(`https://decapi.me/twitch/title/${username}`);
                         const streamTitle = await titleRes.text();
                         state.streamTitle = (!streamTitle.includes('error') && streamTitle.trim() !== '') ? streamTitle : STREAMER_CONFIG.defaultStreamTitle;
                     } catch (e) {
@@ -668,7 +668,7 @@
             setupTwitchEmbeds();
             checkLiveStatus();
 
-            setInterval(checkLiveStatus, 10000);
+            setInterval(checkLiveStatus, 30000);
         });
     </script>
 </body>
