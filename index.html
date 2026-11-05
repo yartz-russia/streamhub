@@ -99,6 +99,42 @@
             border: 0;
         }
 
+        /* Окно стрима на телефоне в горизонтальной ориентации:
+           плеер слева (вписан по высоте экрана), чат справа */
+        #mobile-stream-modal.is-landscape {
+            top: 0;
+            z-index: 50; /* поверх шапки */
+            height: 100dvh; /* реальная видимая высота с учётом интерфейса браузера */
+        }
+        #mobile-stream-modal.is-landscape #mob-modal-content {
+            flex-direction: row;
+            gap: 0.5rem;
+        }
+        #mobile-stream-modal.is-landscape #mob-modal-content > * {
+            margin-top: 0; /* отключаем вертикальные отступы space-y-2 */
+        }
+        #mobile-stream-modal.is-landscape #mob-player-wrapper {
+            height: 100%;
+            width: auto;
+            aspect-ratio: 16 / 9;
+            max-width: calc(100% - 240px); /* чату остаётся минимум 240px */
+        }
+        #mobile-stream-modal.is-landscape #mob-player-wrapper .video-container {
+            height: 100%;
+            padding-bottom: 0;
+        }
+        #mobile-stream-modal.is-landscape #mob-chat-wrapper {
+            height: 100%;
+            width: auto;
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+        #mob-modal-landscape-overlay .mob-tab-stream,
+        #mob-modal-landscape-overlay .mob-tab-links {
+            height: 1.75rem;
+        }
+
         /* Кастомный скроллбар */
         ::-webkit-scrollbar {
             width: 6px;
@@ -297,14 +333,18 @@
                 <img src="https://i.postimg.cc/X7gtYcjr/logomini.png" alt="YARTZ Logo" class="h-8 w-auto object-contain" onerror="this.onerror=null; this.src='https://placehold.co/100x32/252525/60E4EE?text=YARTZ';">
             </a>
 
-            <!-- Интегрированная кнопка "Смотреть" со статусом (Off / LIVE) -->
-            <button id="mob-watch-btn" disabled onclick="openMobileStreamModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed flex items-center gap-2">
-                <span id="mob-btn-dot-container" class="relative flex h-2 w-2">
-                    <span id="mob-btn-dot-ping" class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>
-                </span>
-                <span>Смотреть</span>
-                <span id="mob-btn-status-text" class="uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-gray-900/60 text-gray-400">Off</span>
-            </button>
+            <!-- Переключатель Стрим / Ссылки -->
+            <div id="mob-view-toggle" role="tablist" class="flex items-center gap-1 p-1 rounded-xl bg-cardbg border border-gray-700 shrink-0">
+                <button role="tab" aria-selected="false" disabled onclick="openMobileStreamModal()" class="mob-tab-stream flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-bold transition-all text-gray-600 cursor-not-allowed">
+                    <span class="mob-tab-stream-dot relative flex h-2 w-2">
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>
+                    </span>
+                    <span>Стрим</span>
+                </button>
+                <button role="tab" aria-selected="true" onclick="closeMobileStreamModal()" class="mob-tab-links flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-bold transition-all bg-brand text-mainbg shadow-md">
+                    <span>Ссылки</span>
+                </button>
+            </div>
         </header>
 
         <!-- Основной контент Мобильной страницы -->
@@ -401,19 +441,11 @@
     <!-- ========================================== -->
     <!-- 📺 3. Окно стрима для мобильных устройств  -->
     <!-- ========================================== -->
-    <div id="mobile-stream-modal" class="fixed inset-0 bg-mainbg z-50 hidden flex-col w-full h-full overflow-hidden">
+    <div id="mobile-stream-modal" class="fixed inset-x-0 top-16 bottom-0 bg-mainbg z-30 hidden flex-col overflow-hidden">
         
         <!-- ВЕРТИКАЛЬНЫЙ ФОРМАТ: Шапка -->
         <header id="mob-modal-header" class="border-b border-gray-700/60 bg-mainbg px-3 py-2.5 flex items-center justify-between gap-2 shrink-0">
-            <div class="flex items-center gap-2 min-w-0">
-                <button onclick="closeMobileStreamModal()" class="p-1.5 text-gray-400 hover:text-white rounded-lg bg-cardbg border border-gray-700 shrink-0">
-                    <i class="fa-solid fa-arrow-left text-sm"></i>
-                </button>
-                <img src="https://i.postimg.cc/X7gtYcjr/logomini.png" alt="YARTZ Logo" class="h-6 w-auto object-contain shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/80x24/252525/60E4EE?text=YARTZ';">
-                <span id="mob-modal-title" class="text-xs font-semibold text-brand truncate max-w-[140px] sm:max-w-xs">
-                    Название стрима
-                </span>
-            </div>
+            <span id="mob-modal-title" class="text-xs font-semibold text-brand truncate min-w-0 flex-1">Название стрима</span>
 
             <!-- Кнопка Донат -->
             <a id="mob-modal-donate-btn" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-donations text-mainbg transition-all shrink-0 shadow-md">
@@ -422,20 +454,27 @@
             </a>
         </header>
 
-        <!-- ГОРИЗОНТАЛЬНЫЙ ФОРМАТ: Полупрозрачная плашка поверх плеера (Лого + Донат) -->
-        <div id="mob-modal-landscape-overlay" class="hidden absolute top-3 left-3 z-30 bg-black/60 backdrop-blur-md rounded-xl p-2 border border-white/10 flex items-center gap-3">
-            <button onclick="closeMobileStreamModal()" class="p-1 text-gray-300 hover:text-white">
-                <i class="fa-solid fa-xmark text-sm"></i>
-            </button>
-            <img src="https://i.postimg.cc/X7gtYcjr/logomini.png" alt="YARTZ Logo" class="h-5 w-auto object-contain">
-            <a id="mob-landscape-donate-btn" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-donations text-mainbg">
+        <!-- ГОРИЗОНТАЛЬНЫЙ ФОРМАТ: полупрозрачный переключатель Стрим / Ссылки + Донат поверх плеера -->
+        <div id="mob-modal-landscape-overlay" class="hidden absolute top-3 left-3 z-30 items-center gap-2 flex">
+            <div role="tablist" class="flex items-center gap-1 p-1 rounded-xl bg-black/50 backdrop-blur-md border border-white/10 opacity-90">
+                <button role="tab" aria-selected="true" onclick="openMobileStreamModal()" class="mob-tab-stream flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-bold transition-all bg-brand text-mainbg shadow-md">
+                    <span class="mob-tab-stream-dot relative flex h-2 w-2">
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                    <span>Стрим</span>
+                </button>
+                <button role="tab" aria-selected="false" onclick="closeMobileStreamModal()" class="mob-tab-links flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-bold transition-all text-gray-300">
+                    <span>Ссылки</span>
+                </button>
+            </div>
+            <a id="mob-landscape-donate-btn" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-bold bg-donations/85 text-mainbg backdrop-blur-md shadow-md">
                 <i class="fa-solid fa-circle-dollar-to-slot text-[10px]"></i>
                 <span>Донат</span>
             </a>
         </div>
 
         <!-- Контент МОДАЛКИ (Вертикальный & Горизонтальный) -->
-        <div class="flex-grow flex flex-col w-full h-full overflow-hidden p-2 space-y-2">
+        <div id="mob-modal-content" class="flex-grow flex flex-col w-full h-full overflow-hidden p-2 space-y-2">
             
             <!-- Плеер стрима во всю ширину с небольшими отступами -->
             <div id="mob-player-wrapper" class="w-full shrink-0 bg-black rounded-xl overflow-hidden border border-gray-700 relative">
@@ -538,8 +577,8 @@
             },
             {
                 id: 'mob-landscape-donate-btn',
-                on: 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-donations text-mainbg',
-                off: 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-gray-800 text-gray-500 cursor-not-allowed pointer-events-none select-none'
+                on: 'inline-flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-bold bg-donations/85 text-mainbg backdrop-blur-md shadow-md',
+                off: 'inline-flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-bold bg-gray-800/80 text-gray-500 cursor-not-allowed pointer-events-none select-none'
             }
         ];
 
@@ -639,17 +678,7 @@
                 <span>LIVE</span>
             `;
 
-            // Мобильная кнопка "Смотреть"
-            const mobWatchBtn = document.getElementById('mob-watch-btn');
-            const mobBtnStatusText = document.getElementById('mob-btn-status-text');
-            mobWatchBtn.disabled = false;
-            mobWatchBtn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-lg bg-brand hover:bg-brandhover text-mainbg border border-brand cursor-pointer pulse-live flex items-center gap-2";
-            document.getElementById('mob-btn-dot-container').innerHTML = `
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-            `;
-            mobBtnStatusText.className = "uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-bold border border-red-500/30";
-            mobBtnStatusText.textContent = "LIVE";
+            renderMobileTabs();
         }
 
         // Состояние ОФФЛАЙН: плеер и чат заменяются заглушками, кнопки неактивны
@@ -676,14 +705,7 @@
                 <span>Off</span>
             `;
 
-            // Мобильная кнопка "Смотреть"
-            const mobWatchBtn = document.getElementById('mob-watch-btn');
-            const mobBtnStatusText = document.getElementById('mob-btn-status-text');
-            mobWatchBtn.disabled = true;
-            mobWatchBtn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed flex items-center gap-2";
-            document.getElementById('mob-btn-dot-container').innerHTML = `<span class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>`;
-            mobBtnStatusText.className = "uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-gray-900 text-gray-400 border border-gray-700";
-            mobBtnStatusText.textContent = "Off";
+            renderMobileTabs();
         }
 
         // Обновление интерфейса на основе состояния
@@ -703,6 +725,34 @@
             }
         }
 
+        // Переключатель Стрим / Ссылки (в шапке и в плашке поверх плеера в горизонтали)
+        function renderMobileTabs() {
+            const base = 'flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-bold transition-all';
+            const active = 'bg-brand text-mainbg shadow-md';
+            const idle = 'text-gray-300 hover:text-white';
+            const disabled = 'text-gray-600 cursor-not-allowed';
+
+            const onStream = state.mobileModalOpen;
+
+            document.querySelectorAll('.mob-tab-stream').forEach(btn => {
+                btn.disabled = !state.isOnline;
+                btn.className = `mob-tab-stream ${base} ${!state.isOnline ? disabled : (onStream ? active : idle)}`;
+                btn.setAttribute('aria-selected', onStream ? 'true' : 'false');
+            });
+
+            document.querySelectorAll('.mob-tab-links').forEach(btn => {
+                btn.className = `mob-tab-links ${base} ${onStream ? idle : active}`;
+                btn.setAttribute('aria-selected', onStream ? 'false' : 'true');
+            });
+
+            document.querySelectorAll('.mob-tab-stream-dot').forEach(dot => {
+                dot.innerHTML = state.isOnline
+                    ? `<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                       <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>`
+                    : `<span class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>`;
+            });
+        }
+
         // Открытие мобильного модального окна стрима
         function openMobileStreamModal() {
             if (!state.isOnline) return;
@@ -712,6 +762,7 @@
             modal.classList.add('flex');
             document.body.style.overflow = 'hidden';
             handleOrientationChange();
+            renderMobileTabs();
         }
 
         // Закрытие мобильного модального окна стрима
@@ -721,6 +772,7 @@
             modal.classList.add('hidden');
             modal.classList.remove('flex');
             document.body.style.overflow = '';
+            renderMobileTabs();
         }
 
         // Обработка ориентации экрана для мобильных устройств
@@ -730,6 +782,8 @@
             const isLandscape = window.innerWidth > window.innerHeight;
             const mobHeader = document.getElementById('mob-modal-header');
             const landscapeOverlay = document.getElementById('mob-modal-landscape-overlay');
+
+            document.getElementById('mobile-stream-modal').classList.toggle('is-landscape', isLandscape);
 
             if (isLandscape) {
                 mobHeader.classList.add('hidden');
@@ -750,6 +804,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             initLinks();
             setDonateEnabled(false); // До первого ответа API кнопка неактивна
+            renderMobileTabs();
 
             // Плеер и чат НЕ грузятся при старте — их запускает плашка, когда получит статус Онлайн
             checkLiveStatus();
