@@ -144,7 +144,7 @@
             mobileModalOpen: false
         };
 
-        // Флаг для отслеживания предыдущего состояния и предотвращения лишних перезагрузок ифреймов
+        // Предыдущий статус: плеер/чат/кнопки меняются только при его смене (чтобы ифреймы не перезагружались при опросе)
         let previousOnlineState = null;
     </script>
 
@@ -475,7 +475,6 @@
             document.getElementById('dt-link-youtube').href = urls.youtube;
             document.getElementById('dt-link-twitch').href = urls.twitch;
             document.getElementById('dt-link-telegram').href = urls.telegram;
-            document.getElementById('dt-chat-donate-btn').href = urls.donationAlerts;
             document.getElementById('dt-direct-chat-link').href = `https://twitch.tv/popout/${STREAMER_CONFIG.twitchUsername}/chat?popout=`;
             document.getElementById('dt-offline-twitch-btn').href = urls.twitch;
             document.getElementById('dt-offline-tg-btn').href = urls.telegram;
@@ -485,157 +484,223 @@
             document.getElementById('mob-link-twitch').href = urls.twitch;
             document.getElementById('mob-link-telegram').href = urls.telegram;
             document.getElementById('mob-link-donations').href = urls.donationAlerts;
-            document.getElementById('mob-modal-donate-btn').href = urls.donationAlerts;
-            document.getElementById('mob-landscape-donate-btn').href = urls.donationAlerts;
+
+            // Кнопки "Донат" в чате/плеере (dt-chat-donate-btn, mob-modal-donate-btn,
+            // mob-landscape-donate-btn) получают ссылку только при включении через setDonateEnabled()
         }
 
-        // Загрузка Twitch плеера и чата (вызывается строго 1 раз при старте)
-        function setupTwitchEmbeds() {
+        // ==========================================
+        // ПЛЕЕР И ЧАТ (управляются только плашкой)
+        // ==========================================
+        function getEmbedUrls() {
             let parentHost = window.location.hostname || STREAMER_CONFIG.parentDomain;
             if (!parentHost || parentHost === "" || parentHost === "localhost") {
                 parentHost = STREAMER_CONFIG.parentDomain;
             }
 
             const username = STREAMER_CONFIG.twitchUsername;
-            const playerUrl = `https://player.twitch.tv/?channel=${username}&parent=${parentHost}&parent=${STREAMER_CONFIG.parentDomain}&parent=localhost&autoplay=true`;
-            const chatUrl = `https://www.twitch.tv/embed/${username}/chat?parent=${parentHost}&parent=${STREAMER_CONFIG.parentDomain}&parent=localhost&darkpopout`;
+            return {
+                playerUrl: `https://player.twitch.tv/?channel=${username}&parent=${parentHost}&parent=${STREAMER_CONFIG.parentDomain}&parent=localhost&autoplay=true`,
+                chatUrl: `https://www.twitch.tv/embed/${username}/chat?parent=${parentHost}&parent=${STREAMER_CONFIG.parentDomain}&parent=localhost&darkpopout`
+            };
+        }
 
-            // Установка src для ПК
+        // Запуск плеера и чата (вызывается только при переходе Оффлайн → Онлайн)
+        function startEmbeds() {
+            const { playerUrl, chatUrl } = getEmbedUrls();
+
             document.getElementById('dt-twitch-player').src = playerUrl;
             document.getElementById('dt-twitch-chat').src = chatUrl;
-
-            // Установка src для Мобильных
             document.getElementById('mob-twitch-player').src = playerUrl;
             document.getElementById('mob-twitch-chat').src = chatUrl;
         }
 
-        // Проверка онлайн-статуса трансляции
+        // Полная выгрузка плеера и чата (вызывается только при переходе Онлайн → Оффлайн)
+        function stopEmbeds() {
+            ['dt-twitch-player', 'dt-twitch-chat', 'mob-twitch-player', 'mob-twitch-chat'].forEach(id => {
+                document.getElementById(id).src = 'about:blank';
+            });
+        }
+
+        // ==========================================
+        // КНОПКИ "ДОНАТ"
+        // ==========================================
+        const DONATE_BUTTONS = [
+            {
+                id: 'dt-chat-donate-btn',
+                on: 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-donations/20 hover:bg-donations/30 text-donations border border-donations/40 transition-all shadow-sm',
+                off: 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed pointer-events-none select-none'
+            },
+            {
+                id: 'mob-modal-donate-btn',
+                on: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-donations text-mainbg transition-all shrink-0 shadow-md',
+                off: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed pointer-events-none select-none shrink-0'
+            },
+            {
+                id: 'mob-landscape-donate-btn',
+                on: 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-donations text-mainbg',
+                off: 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-gray-800 text-gray-500 cursor-not-allowed pointer-events-none select-none'
+            }
+        ];
+
+        function setDonateEnabled(enabled) {
+            DONATE_BUTTONS.forEach(({ id, on, off }) => {
+                const el = document.getElementById(id);
+                el.className = enabled ? on : off;
+                if (enabled) {
+                    el.href = STREAMER_CONFIG.urls.donationAlerts;
+                    el.removeAttribute('aria-disabled');
+                } else {
+                    // Без href ссылка некликабельна и недоступна с клавиатуры
+                    el.removeAttribute('href');
+                    el.setAttribute('aria-disabled', 'true');
+                }
+            });
+        }
+
+        // ==========================================
+        // ПЛАШКА: ЕДИНСТВЕННЫЙ ОПРОС API TWITCH
+        // ==========================================
+        async function fetchText(url, timeoutMs = 6000) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const res = await fetch(url, { signal: controller.signal });
+                return await res.text();
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
         async function checkLiveStatus() {
             const username = STREAMER_CONFIG.twitchUsername;
 
             try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-                const res = await fetch(`https://decapi.me/twitch/uptime/${username}`, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                const uptimeText = await res.text();
+                const uptimeText = await fetchText(`https://decapi.me/twitch/uptime/${username}`);
 
                 // Проверяем, вернул ли API явный сбой в ответе 200 OK
                 if (uptimeText.includes('error')) {
                     throw new Error("DecAPI Error Response");
                 }
 
-                const isOnline = !uptimeText.includes('offline') && 
-                                 !uptimeText.includes('is not live') && 
+                const isOnline = !uptimeText.includes('offline') &&
+                                 !uptimeText.includes('is not live') &&
                                  uptimeText.trim() !== '';
 
                 state.isOnline = isOnline;
 
-                // 1. Если СТРИМ ОФФЛАЙН — показываем стандартный оффлайн-текст
                 if (!isOnline) {
+                    // СТРИМ ОФФЛАЙН
                     state.streamTitle = STREAMER_CONFIG.offlineStreamTitle;
-                    updateUI();
-                    return;
+                } else {
+                    // СТРИМ ОНЛАЙН — подтягиваем название (обновляется при каждом опросе)
+                    try {
+                        const streamTitle = await fetchText(`https://decapi.me/twitch/title/${username}`);
+                        state.streamTitle = (!streamTitle.includes('error') && streamTitle.trim() !== '')
+                            ? streamTitle
+                            : STREAMER_CONFIG.defaultOnlineTitle;
+                    } catch (e) {
+                        state.streamTitle = STREAMER_CONFIG.defaultOnlineTitle;
+                    }
                 }
-
-                // 2. Если СТРИМ ОНЛАЙН — запрашиваем название
-                try {
-                    const titleRes = await fetch(`https://decapi.me/twitch/title/${username}`);
-                    const streamTitle = await titleRes.text();
-                    state.streamTitle = (!streamTitle.includes('error') && streamTitle.trim() !== '') 
-                        ? streamTitle 
-                        : STREAMER_CONFIG.defaultOnlineTitle;
-                } catch (e) {
-                    state.streamTitle = STREAMER_CONFIG.defaultOnlineTitle;
-                }
-
-                updateUI();
             } catch (e) {
-                // 3. ПРИ ЛЮБОЙ СЕТЕВОЙ ОШИБКЕ ИЛИ ТАЙМАУТЕ — СТРОГО ВЫВОДИМ ОШИБКУ ПОДКЛЮЧЕНИЯ
+                // СБОЙ API / СЕТИ.
+                // Если стрим уже шёл — ничего не трогаем: плеер и чат продолжают работать,
+                // следующий опрос через 30 секунд.
+                if (state.isOnline === true) return;
+
+                // Иначе (например, ошибка при первой загрузке) — показываем ошибку подключения
                 state.isOnline = false;
                 state.streamTitle = STREAMER_CONFIG.errorStreamTitle;
-                updateUI();
             }
+
+            updateUI();
+        }
+
+        // Состояние ОНЛАЙН: плашка включает плеер, чат и кнопки
+        function applyOnlineState() {
+            const dtStatusBadge = document.getElementById('dt-status-badge');
+
+            startEmbeds();
+
+            document.getElementById('dt-player-offline').classList.add('hidden');
+            document.getElementById('dt-twitch-player').classList.remove('hidden');
+            document.getElementById('dt-chat-offline').classList.add('hidden');
+            document.getElementById('dt-twitch-chat').classList.remove('hidden');
+
+            setDonateEnabled(true);
+
+            dtStatusBadge.className = "inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold shrink-0 bg-red-500/20 text-red-400 border border-red-500/40";
+            dtStatusBadge.innerHTML = `
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 pulse-live"></span>
+                </span>
+                <span>LIVE</span>
+            `;
+
+            // Мобильная кнопка "Смотреть"
+            const mobWatchBtn = document.getElementById('mob-watch-btn');
+            const mobBtnStatusText = document.getElementById('mob-btn-status-text');
+            mobWatchBtn.disabled = false;
+            mobWatchBtn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-lg bg-brand hover:bg-brandhover text-mainbg border border-brand cursor-pointer pulse-live flex items-center gap-2";
+            document.getElementById('mob-btn-dot-container').innerHTML = `
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+            `;
+            mobBtnStatusText.className = "uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-bold border border-red-500/30";
+            mobBtnStatusText.textContent = "LIVE";
+        }
+
+        // Состояние ОФФЛАЙН: плеер и чат заменяются заглушками, кнопки неактивны
+        function applyOfflineState() {
+            const dtStatusBadge = document.getElementById('dt-status-badge');
+
+            // Если на телефоне открыто окно стрима — закрываем его
+            if (state.mobileModalOpen) closeMobileStreamModal();
+
+            stopEmbeds();
+
+            document.getElementById('dt-player-offline').classList.remove('hidden');
+            document.getElementById('dt-twitch-player').classList.add('hidden');
+            document.getElementById('dt-chat-offline').classList.remove('hidden');
+            document.getElementById('dt-twitch-chat').classList.add('hidden');
+
+            setDonateEnabled(false);
+
+            dtStatusBadge.className = "inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold shrink-0 bg-gray-800 text-gray-400 border border-gray-700";
+            dtStatusBadge.innerHTML = `
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-400"></span>
+                </span>
+                <span>Off</span>
+            `;
+
+            // Мобильная кнопка "Смотреть"
+            const mobWatchBtn = document.getElementById('mob-watch-btn');
+            const mobBtnStatusText = document.getElementById('mob-btn-status-text');
+            mobWatchBtn.disabled = true;
+            mobWatchBtn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed flex items-center gap-2";
+            document.getElementById('mob-btn-dot-container').innerHTML = `<span class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>`;
+            mobBtnStatusText.className = "uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-gray-900 text-gray-400 border border-gray-700";
+            mobBtnStatusText.textContent = "Off";
         }
 
         // Обновление интерфейса на основе состояния
         function updateUI() {
-            // --- ПК ИНТЕРФЕЙС ---
-            const dtStatusBadge = document.getElementById('dt-status-badge');
-            const dtStreamTitle = document.getElementById('dt-stream-title');
-            const dtPlayerOffline = document.getElementById('dt-player-offline');
-            const dtTwitchPlayer = document.getElementById('dt-twitch-player');
-            const dtChatOffline = document.getElementById('dt-chat-offline');
-            const dtTwitchChat = document.getElementById('dt-twitch-chat');
+            // Название стрима обновляется при каждом опросе
+            document.getElementById('dt-stream-title').textContent = state.streamTitle;
+            document.getElementById('mob-modal-title').textContent = state.streamTitle;
 
-            dtStreamTitle.textContent = state.streamTitle;
-
-            // Меняем видимость элементов плеера/чата только если статус изменился или при первом запуске
-            if (previousOnlineState !== state.isOnline) {
-                if (state.isOnline) {
-                    dtPlayerOffline.classList.add('hidden');
-                    dtTwitchPlayer.classList.remove('hidden');
-                    dtChatOffline.classList.add('hidden');
-                    dtTwitchChat.classList.remove('hidden');
-                } else {
-                    dtPlayerOffline.classList.remove('hidden');
-                    dtTwitchPlayer.classList.add('hidden');
-                    dtChatOffline.classList.remove('hidden');
-                    dtTwitchChat.classList.add('hidden');
-                }
-            }
-
-            if (state.isOnline) {
-                dtStatusBadge.className = "inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold shrink-0 bg-red-500/20 text-red-400 border border-red-500/40";
-                dtStatusBadge.innerHTML = `
-                    <span class="relative flex h-2.5 w-2.5">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 pulse-live"></span>
-                    </span>
-                    <span>LIVE</span>
-                `;
-            } else {
-                dtStatusBadge.className = "inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold shrink-0 bg-gray-800 text-gray-400 border border-gray-700";
-                dtStatusBadge.innerHTML = `
-                    <span class="relative flex h-2.5 w-2.5">
-                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-400"></span>
-                    </span>
-                    <span>Off</span>
-                `;
-            }
-
-            // --- МОБИЛЬНЫЙ ИНТЕРФЕЙС ---
-            const mobWatchBtn = document.getElementById('mob-watch-btn');
-            const mobBtnDotContainer = document.getElementById('mob-btn-dot-container');
-            const mobBtnStatusText = document.getElementById('mob-btn-status-text');
-            const mobModalTitle = document.getElementById('mob-modal-title');
-
-            mobModalTitle.textContent = state.streamTitle;
-
-            if (state.isOnline) {
-                mobWatchBtn.disabled = false;
-                mobWatchBtn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-lg bg-brand hover:bg-brandhover text-mainbg border border-brand cursor-pointer pulse-live flex items-center gap-2";
-                
-                mobBtnDotContainer.innerHTML = `
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                `;
-                
-                mobBtnStatusText.className = "uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-bold border border-red-500/30";
-                mobBtnStatusText.textContent = "LIVE";
-            } else {
-                mobWatchBtn.disabled = true;
-                mobWatchBtn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed flex items-center gap-2";
-                
-                mobBtnDotContainer.innerHTML = `<span class="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>`;
-                
-                mobBtnStatusText.className = "uppercase tracking-wide text-[10px] px-1.5 py-0.5 rounded bg-gray-900 text-gray-400 border border-gray-700";
-                mobBtnStatusText.textContent = "Off";
-            }
-
-            // Запоминаем текущий статус, чтобы ифреймы не дергались при каждом опросе
+            // Плеер, чат и кнопки трогаем ТОЛЬКО при смене статуса — иначе ифреймы перезагружаются
+            if (previousOnlineState === state.isOnline) return;
             previousOnlineState = state.isOnline;
+
+            if (state.isOnline) {
+                applyOnlineState();
+            } else {
+                applyOfflineState();
+            }
         }
 
         // Открытие мобильного модального окна стрима
@@ -684,10 +749,10 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             initLinks();
-            setupTwitchEmbeds(); // Загружаем плеер и чат единожды при старте
-            checkLiveStatus();
+            setDonateEnabled(false); // До первого ответа API кнопка неактивна
 
-            // Опрос статуса каждые 30 секунд (без перезагрузки ифреймов при неизменном статусе)
+            // Плеер и чат НЕ грузятся при старте — их запускает плашка, когда получит статус Онлайн
+            checkLiveStatus();
             setInterval(checkLiveStatus, 30000);
         });
     </script>
